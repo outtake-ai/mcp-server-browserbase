@@ -13,6 +13,39 @@ export const RESOURCE_TEMPLATES = [];
 // Store screenshots in a map
 export const screenshots = new Map<string, string>();
 
+// Track screenshots by session so we can purge them on session end
+// key: sessionId (internal/current session id), value: set of screenshot names
+const sessionIdToScreenshotNames = new Map<string, Set<string>>();
+
+export function registerScreenshot(
+  sessionId: string,
+  name: string,
+  base64: string,
+) {
+  screenshots.set(name, base64);
+  let set = sessionIdToScreenshotNames.get(sessionId);
+  if (!set) {
+    set = new Set();
+    sessionIdToScreenshotNames.set(sessionId, set);
+  }
+  set.add(name);
+}
+
+export function clearScreenshotsForSession(sessionId: string) {
+  const set = sessionIdToScreenshotNames.get(sessionId);
+  if (set) {
+    for (const name of set) {
+      screenshots.delete(name);
+    }
+    sessionIdToScreenshotNames.delete(sessionId);
+  }
+}
+
+export function clearAllScreenshots() {
+  screenshots.clear();
+  sessionIdToScreenshotNames.clear();
+}
+
 /**
  * Handle listing resources request
  * @returns A list of available resources including screenshots

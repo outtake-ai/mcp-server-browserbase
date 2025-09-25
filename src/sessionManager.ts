@@ -2,6 +2,7 @@ import { Page, BrowserContext } from "@browserbasehq/stagehand";
 import type { Config } from "../config.d.ts";
 import type { Cookie } from "playwright-core";
 import { createStagehandInstance } from "./stagehandStore.js";
+import { clearScreenshotsForSession } from "./mcp/resources.js";
 import type { BrowserSession } from "./types/types.js";
 
 // Global state for managing browser sessions
@@ -131,6 +132,21 @@ export async function createNewBrowserSession(
         );
         setActiveSessionId(defaultSessionId);
       }
+
+      // Purge any screenshots associated with both internal and Browserbase IDs
+      try {
+        clearScreenshotsForSession(newSessionId);
+        const bbId = browserbaseSessionId;
+        if (bbId) {
+          clearScreenshotsForSession(bbId);
+        }
+      } catch (err) {
+        process.stderr.write(
+          `[SessionManager] WARN - Failed to clear screenshots on disconnect for ${newSessionId}: ${
+            err instanceof Error ? err.message : String(err)
+          }\n`,
+        );
+      }
     });
 
     // Add cookies to the context if they are provided in the config
@@ -192,6 +208,20 @@ async function closeBrowserGracefully(
       process.stderr.write(
         `[SessionManager] Successfully closed Stagehand and browser for session: ${sessionIdToLog}\n`,
       );
+      // After close, purge any screenshots associated with both internal and Browserbase IDs
+      try {
+        clearScreenshotsForSession(sessionIdToLog);
+        const bbId = session?.stagehand?.browserbaseSessionID;
+        if (bbId) {
+          clearScreenshotsForSession(bbId);
+        }
+      } catch (err) {
+        process.stderr.write(
+          `[SessionManager] WARN - Failed to clear screenshots after close for ${sessionIdToLog}: ${
+            err instanceof Error ? err.message : String(err)
+          }\n`,
+        );
+      }
     } catch (closeError) {
       process.stderr.write(
         `[SessionManager] WARN - Error closing Stagehand for session ${sessionIdToLog}: ${
@@ -334,6 +364,17 @@ export async function cleanupSession(sessionId: string): Promise<void> {
 
   // Remove from browsers map
   browsers.delete(sessionId);
+
+  // Always purge screenshots for this (internal) session id
+  try {
+    clearScreenshotsForSession(sessionId);
+  } catch (err) {
+    process.stderr.write(
+      `[SessionManager] WARN - Failed to clear screenshots during cleanup for ${sessionId}: ${
+        err instanceof Error ? err.message : String(err)
+      }\n`,
+    );
+  }
 
   // Clear default session reference if this was the default
   if (sessionId === defaultSessionId && defaultBrowserSession) {

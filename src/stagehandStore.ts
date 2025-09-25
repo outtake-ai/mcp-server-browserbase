@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Stagehand, Page } from "@browserbasehq/stagehand";
 import { StagehandSession, CreateSessionParams } from "./types/types.js";
 import type { Config } from "../config.d.ts";
+import { clearScreenshotsForSession } from "./mcp/resources.js";
 
 // Store for all active sessions
 const store = new Map<string, StagehandSession>();
@@ -110,6 +111,18 @@ export const create = async (
   const disconnectHandler = () => {
     process.stderr.write(`[StagehandStore] Session disconnected: ${id}\n`);
     store.delete(id);
+    // Purge by internal store ID and Browserbase session ID
+    try {
+      clearScreenshotsForSession(id);
+      const bbId = session.metadata?.bbSessionId;
+      if (bbId) {
+        clearScreenshotsForSession(bbId);
+      }
+    } catch {
+      process.stderr.write(
+        `[StagehandStore] Error clearing screenshots for session ${id}\n`,
+      );
+    }
   };
 
   browser.on("disconnected", disconnectHandler);
@@ -158,6 +171,18 @@ export const remove = async (id: string): Promise<void> => {
 
     await session.stagehand.close();
     process.stderr.write(`[StagehandStore] Session closed: ${id}\n`);
+    // Purge by internal store ID and Browserbase session ID
+    try {
+      clearScreenshotsForSession(id);
+      const bbId = session.metadata?.bbSessionId;
+      if (bbId) {
+        clearScreenshotsForSession(bbId);
+      }
+    } catch {
+      process.stderr.write(
+        `[StagehandStore] Error clearing screenshots for session ${id}\n`,
+      );
+    }
   } catch (error) {
     process.stderr.write(
       `[StagehandStore] Error closing session ${id}: ${
