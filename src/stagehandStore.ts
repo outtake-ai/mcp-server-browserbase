@@ -3,6 +3,7 @@ import { Stagehand, Page } from "@browserbasehq/stagehand";
 import { StagehandSession, CreateSessionParams } from "./types/types.js";
 import type { Config } from "../config.d.ts";
 import { clearScreenshotsForSession } from "./mcp/resources.js";
+import { setUserAgent } from "./sessionManager.js";
 
 // Store for all active sessions
 const store = new Map<string, StagehandSession>();
@@ -84,6 +85,23 @@ export const create = async (
 
   if (!browser) {
     throw new Error("Failed to get browser from Stagehand page context");
+  }
+
+  // Apply user-agent if provided via tool parameter
+  if (params.userAgent) {
+    try {
+      await setUserAgent(page, params.userAgent);
+      process.stderr.write(
+        `[StagehandStore] Applied User-Agent for session: ${id}\n`,
+      );
+    } catch (error) {
+      process.stderr.write(
+        `[StagehandStore] Failed to set User-Agent for session ${id}: ${
+          error instanceof Error ? error.message : String(error)
+        }\n`,
+      );
+      // Don't throw - session can still be used
+    }
   }
 
   const session: StagehandSession = {

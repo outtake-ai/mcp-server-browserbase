@@ -25,6 +25,17 @@ const CreateSessionInputSchema = z.object({
     .describe(
       "Optional session ID to use/reuse. If not provided or invalid, a new session is created.",
     ),
+  userAgent: z
+    .string()
+    .optional()
+    .describe(
+      "Custom User-Agent string for this browser session. " +
+        "This overrides both HTTP headers and navigator.userAgent in JavaScript. " +
+        "Use this to emulate specific browsers/devices. " +
+        "Examples: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)' for mobile, " +
+        "'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0' for desktop. " +
+        "If not provided, uses browser default.",
+    ),
 });
 type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;
 
@@ -57,13 +68,14 @@ async function handleCreateSession(
 
       let session: BrowserSession;
       if (targetSessionId === defaultSessionId) {
-        session = await ensureDefaultSessionInternal(config);
+        session = await ensureDefaultSessionInternal(config, params.userAgent);
       } else {
         // When user provides a sessionId, we want to resume that Browserbase session
         session = await createNewBrowserSession(
           targetSessionId,
           config,
           params.sessionId,
+          params.userAgent,
         );
       }
 
