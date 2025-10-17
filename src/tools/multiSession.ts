@@ -85,7 +85,7 @@ export const createSessionTool = defineTool({
   schema: {
     name: "multi_browserbase_stagehand_session_create",
     description:
-      "Create parallel browser session for multi-session workflows. Use this when you need multiple browser instances running simultaneously: parallel data scraping, concurrent automation, A/B testing, multiple user accounts, cross-site operations, batch processing, or any task requiring more than one browser. Creates an isolated browser session with independent cookies, authentication, and state. Always pair with session-specific tools (those ending with '_session'). Perfect for scaling automation tasks that require multiple browsers working in parallel.",
+      "Create parallel browser session for multi-session workflows. Use this when you need multiple browser instances running simultaneously: parallel data scraping, concurrent automation, A/B testing, multiple user accounts, cross-site operations, batch processing, or any task requiring more than one browser. Creates an isolated browser session with independent cookies, authentication, and state. Always pair with session-specific tools (those ending with '_session'). Perfect for scaling automation tasks that require multiple browsers working in parallel. IMPORTANT: Set userAgent at session creation time - it cannot be changed later.",
     inputSchema: z.object({
       name: z
         .string()
@@ -99,15 +99,32 @@ export const createSessionTool = defineTool({
         .describe(
           "Resume an existing Browserbase session by providing its session ID. Use this to continue work in a previously created browser session that may have been paused or disconnected.",
         ),
+      userAgent: z
+        .string()
+        .optional()
+        .describe(
+          "Custom User-Agent string for this specific session. " +
+            "This overrides both HTTP headers and navigator.userAgent in JavaScript. " +
+            "Perfect for multi-session scenarios where each session needs a different identity: " +
+            "- Desktop vs Mobile testing: Set different UAs per session " +
+            "- Multi-account workflows: Each account uses different browser fingerprint " +
+            "- A/B testing: Compare behavior across different browser types " +
+            "Examples: " +
+            "'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0' for desktop Chrome, " +
+            "'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)' for iPhone, " +
+            "'Mozilla/5.0 (X11; Linux x86_64) Firefox/121.0' for Firefox on Linux. " +
+            "If not provided, uses browser default.",
+        ),
     }),
   },
   handle: async (
     context: Context,
-    { name, browserbaseSessionID },
+    { name, browserbaseSessionID, userAgent },
   ): Promise<ToolResult> => {
     try {
       const params: CreateSessionParams = {
         browserbaseSessionID,
+        userAgent,
         meta: name ? { name } : undefined,
       };
 

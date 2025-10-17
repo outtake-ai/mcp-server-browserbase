@@ -20,6 +20,11 @@ export type CreateSessionParams = {
   browserbaseSessionID?: string;
   browserbaseSessionCreateParams?: any;
   meta?: Record<string, any>;
+  /**
+   * Custom User-Agent string for this session
+   * Overrides global config if provided
+   */
+  userAgent?: string;
 };
 
 export type BrowserSession = {

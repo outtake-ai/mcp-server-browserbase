@@ -69,11 +69,95 @@ export async function addCookiesToContext(
   }
 }
 
+/**
+ * Sets the User-Agent for a browser page using both HTTP headers and script injection.
+ * This provides the most complete user-agent override by ensuring both HTTP requests
+ * and JavaScript navigator.userAgent return the custom value.
+ *
+ * @param page The Playwright page
+ * @param userAgent The User-Agent string to set
+ * @throws Error if both methods fail (logs warnings for individual failures)
+ */
+export async function setUserAgent(
+  page: Page,
+  userAgent: string,
+): Promise<void> {
+  const sessionInfo = "[SessionManager]";
+  let httpHeaderSuccess = false;
+  let scriptInjectionSuccess = false;
+
+  // Method 1: Set HTTP header for all requests
+  try {
+    await page.setExtraHTTPHeaders({
+      "User-Agent": userAgent,
+    });
+    httpHeaderSuccess = true;
+    process.stderr.write(
+      `${sessionInfo} Set User-Agent HTTP header: ${userAgent.substring(0, 50)}...\n`,
+    );
+  } catch (error) {
+    process.stderr.write(
+      `${sessionInfo} Warning: Failed to set User-Agent header: ${
+        error instanceof Error ? error.message : String(error)
+      }\n`,
+    );
+  }
+
+  // Method 2: Inject script to override navigator.userAgent
+  try {
+    // Escape single quotes in user agent string
+    const escapedUA = userAgent.replace(/'/g, "\\'");
+
+    const script = `
+      // Override navigator.userAgent
+      Object.defineProperty(navigator, 'userAgent', {
+        get: () => '${escapedUA}',
+        configurable: true
+      });
+    `;
+
+    await page.addInitScript(script);
+    scriptInjectionSuccess = true;
+    process.stderr.write(
+      `${sessionInfo} Injected User-Agent script for navigator.userAgent\n`,
+    );
+  } catch (error) {
+    process.stderr.write(
+      `${sessionInfo} Warning: Failed to inject User-Agent script: ${
+        error instanceof Error ? error.message : String(error)
+      }\n`,
+    );
+  }
+
+  // If both methods failed, throw an error
+  if (!httpHeaderSuccess && !scriptInjectionSuccess) {
+    throw new Error(
+      "Failed to set User-Agent: Both HTTP header and script injection methods failed",
+    );
+  }
+
+  // Log success message
+  if (httpHeaderSuccess && scriptInjectionSuccess) {
+    process.stderr.write(
+      `${sessionInfo} Successfully set User-Agent using both HTTP headers and script injection\n`,
+    );
+  } else if (httpHeaderSuccess) {
+    process.stderr.write(
+      `${sessionInfo} Partially set User-Agent: HTTP headers only (script injection failed)\n`,
+    );
+  } else {
+    process.stderr.write(
+      `${sessionInfo} Partially set User-Agent: Script injection only (HTTP headers failed)\n`,
+    );
+  }
+}
+
 // Function to create a new Browserbase session using Stagehand
 export async function createNewBrowserSession(
   newSessionId: string,
   config: Config,
   resumeSessionId?: string,
+  userAgent?: string,
 ): Promise<BrowserSession> {
   if (!config.browserbaseApiKey) {
     throw new Error("Browserbase API Key is missing in the configuration.");
@@ -148,6 +232,23 @@ export async function createNewBrowserSession(
         );
       }
     });
+
+    // Apply user-agent if provided via tool parameter
+    if (userAgent) {
+      try {
+        await setUserAgent(page, userAgent);
+        process.stderr.write(
+          `[SessionManager] Applied User-Agent for session: ${newSessionId}\n`,
+        );
+      } catch (error) {
+        process.stderr.write(
+          `[SessionManager] Failed to set User-Agent for session ${newSessionId}: ${
+            error instanceof Error ? error.message : String(error)
+          }\n`,
+        );
+        // Don't throw - session can still be used
+      }
+    }
 
     // Add cookies to the context if they are provided in the config
     if (
@@ -235,6 +336,7 @@ async function closeBrowserGracefully(
 // Internal function to ensure default session
 export async function ensureDefaultSessionInternal(
   config: Config,
+  userAgent?: string,
 ): Promise<BrowserSession> {
   const sessionId = defaultSessionId;
   let needsReCreation = false;
@@ -259,7 +361,12 @@ export async function ensureDefaultSessionInternal(
 
   if (needsReCreation) {
     try {
-      defaultBrowserSession = await createNewBrowserSession(sessionId, config);
+      defaultBrowserSession = await createNewBrowserSession(
+        sessionId,
+        config,
+        undefined,
+        userAgent,
+      );
       return defaultBrowserSession;
     } catch (creationError) {
       // Error during initial creation or recreation
@@ -278,6 +385,8 @@ export async function ensureDefaultSessionInternal(
         defaultBrowserSession = await createNewBrowserSession(
           sessionId,
           config,
+          undefined,
+          userAgent,
         );
         return defaultBrowserSession;
       } catch (retryError) {

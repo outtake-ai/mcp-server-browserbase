@@ -2,7 +2,7 @@ import navigateTool from "./navigate.js";
 import actTool from "./act.js";
 import extractTool from "./extract.js";
 import observeTool from "./observe.js";
-import screenshotTool from "./screenshot.js";
+import screenshotTools from "./screenshot.js";
 import sessionTools from "./session.js";
 import getUrlTool from "./url.js";
 import {
@@ -22,7 +22,7 @@ export { default as navigateTool } from "./navigate.js";
 export { default as actTool } from "./act.js";
 export { default as extractTool } from "./extract.js";
 export { default as observeTool } from "./observe.js";
-export { default as screenshotTool } from "./screenshot.js";
+export { default as screenshotTools } from "./screenshot.js";
 export { default as sessionTools } from "./session.js";
 export { default as getUrlTool } from "./url.js";
 
@@ -47,7 +47,7 @@ export const TOOLS = [
   actTool,
   extractTool,
   observeTool,
-  screenshotTool,
+  ...screenshotTools,
   getUrlTool,
 ];
 
