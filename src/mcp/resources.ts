@@ -53,11 +53,18 @@ export function clearAllScreenshots() {
 export function listResources() {
   return {
     resources: [
-      ...Array.from(screenshots.keys()).map((name) => ({
-        uri: `screenshot://${name}`,
-        mimeType: "image/png",
-        name: `Screenshot: ${name}`,
-      })),
+      ...Array.from(screenshots.keys()).map((name) => {
+        // Determine mime type from file extension
+        const mimeType =
+          name.endsWith(".jpg") || name.endsWith(".jpeg")
+            ? "image/jpeg"
+            : "image/png";
+        return {
+          uri: `screenshot://${name}`,
+          mimeType,
+          name: `Screenshot: ${name}`,
+        };
+      }),
     ],
   };
 }
@@ -80,11 +87,16 @@ export function readResource(uri: string) {
     const name = uri.split("://")[1];
     const screenshot = screenshots.get(name);
     if (screenshot) {
+      // Determine mime type from file extension
+      const mimeType =
+        name.endsWith(".jpg") || name.endsWith(".jpeg")
+          ? "image/jpeg"
+          : "image/png";
       return {
         contents: [
           {
             uri,
-            mimeType: "image/png",
+            mimeType,
             blob: screenshot,
           },
         ],
